@@ -11,12 +11,12 @@ Everything you need to know about every provider in OpenMontage — setup instru
 | Step | Cost | What to set up | What it unlocks |
 |------|------|----------------|-----------------|
 | 1 | **$0** | Pexels + Pixabay | Stock photos and videos — enough to produce basic videos |
-| 2 | **$0** | Google API key | TTS with 700+ voices (1M chars/month free) + $300 new account credit |
-| 3 | **$0** | ElevenLabs | Premium TTS + music + SFX (10K chars/month free) |
+| 2 | **$0** | Google service account | Cloud TTS with 700+ voices (1M chars/month free) + $300 new account credit — needs a service account JSON, **not** an API key |
+| 3 | **$0** | ElevenLabs | Premium TTS, 10K chars/month free — Music API and Voice Library voices need a paid plan |
 | 4 | **$0** | Piper (local install) | Fully offline TTS — no API key, no cost, no network |
 | 5 | **~$0.03/image** | fal.ai | FLUX images + Kling/Veo/MiniMax video + Recraft — broad single-key image + video coverage |
 | 6 | **~$0.04/image** | OpenAI | DALL-E 3 images + OpenAI TTS |
-| 7 | **~$0.04/image** | Google Imagen | Imagen 4 images (shares the Google API key) |
+| 7 | **~$0.04/image** | Google Imagen | Imagen 4 images — needs a Vertex AI service account; AI Studio `AQ.` keys cannot reach Imagen models |
 | 8 | **$12/month** | Runway | Gen-4 video — highest quality AI video |
 | 9 | **pay-as-you-go** | HeyGen | Avatar videos, multi-model video gateway |
 | 10 | **pay-as-you-go** | Suno | Full song generation with vocals and lyrics |
@@ -32,11 +32,12 @@ Everything you need to know about every provider in OpenMontage — setup instru
 PEXELS_API_KEY=              # Stock photos + videos
 PIXABAY_API_KEY=             # Stock photos + videos
 
-# GOOGLE (one key, two tools, generous free tier)
-GOOGLE_API_KEY=              # Google TTS + Google Imagen
+# GOOGLE (two separate credentials — see the Google section)
+GOOGLE_API_KEY=              # Gemini API only (AI Studio issues "AQ." auth keys)
+GOOGLE_APPLICATION_CREDENTIALS=  # Service account JSON — required by google_tts and google_imagen
 
 # VOICE + MUSIC
-ELEVENLABS_API_KEY=          # TTS, music, sound effects (10K chars/month free)
+ELEVENLABS_API_KEY=          # TTS (10K chars/month free); Music API needs a paid plan
 OPENAI_API_KEY=              # OpenAI TTS + DALL-E 3 images
 XAI_API_KEY=                 # xAI Grok image generation/editing + Grok video generation
 DOUBAO_SPEECH_API_KEY=       # Volcengine Doubao Speech TTS (strong Mandarin narration)
@@ -133,9 +134,9 @@ No subscription — pure pay-as-you-go, no minimum spend.
 
 ---
 
-### ElevenLabs — Voice, Music, Sound Effects
+### ElevenLabs — Voice + Music
 
-> **Premium voice quality.** Best TTS for narration-heavy videos. Also generates music and sound effects.
+> **Premium voice quality.** Best TTS for narration-heavy videos. Music generation requires a paid plan, and OpenMontage has no sound-effect tool yet.
 
 **Tools unlocked:** `elevenlabs_tts`, `music_gen`
 **Env var:** `ELEVENLABS_API_KEY`
@@ -157,7 +158,20 @@ No subscription — pure pay-as-you-go, no minimum spend.
 | Pro | $99/mo | 500,000 | 96kbps audio, usage analytics |
 | Scale | $330/mo | 2,000,000 | Priority support |
 
-**Free tier:** 10,000 characters/month (roughly 2-3 minutes of narration). API access included. Music generation and sound effects also available on free tier with limited credits.
+**Free tier:** 10,000 characters/month (roughly 2-3 minutes of narration). API access included.
+
+**Free-plan limits, measured on 2026-09-18:**
+
+- **Music API is paid-only** — `POST /v1/music` returns
+  `402 Music API is not available for free users. Please upgrade to a paid plan to use the API`.
+  `music_gen` needs Starter ($5/mo) or above.
+- **Voice Library voices cannot be used via the API** — they return
+  `402 Free users cannot use library voices via the API`. This includes Rachel
+  (`21m00Tcm4TlvDq8ikWAM`) and Aria (`9BWtsMINqrJLrRacOk9x`). Default voices such as
+  Sarah (`EXAVITQu4vr4xnSDxMaL`), George (`JBFqnCBsd6RMkjVDRZzb`) and Matilda
+  (`XrExE9yKIg1WjnnlVkGX`) do work. `elevenlabs_tts` defaults to Sarah for this reason.
+- Sound-effect generation is **not implemented** in OpenMontage — `audio_mixer` only
+  mixes SFX files you already have.
 
 ---
 
@@ -207,29 +221,54 @@ Doubao Speech 2.0 is billed by character package or usage in Volcengine. OpenMon
 
 ---
 
-### Google — TTS + Imagen (Shared Key)
+### Google — TTS + Imagen
 
-> **One key, two tools.** Google Cloud TTS has 700+ voices in 50+ languages — the strongest localization option. Imagen 4 generates high-quality images.
+> **Two tools, two different credentials.** Google Cloud TTS has 700+ voices in 50+ languages — the strongest localization option. Imagen 4 generates high-quality images. As of 2026 these no longer share one API key.
 
 **Tools unlocked:** `google_tts`, `google_imagen`
-**Env var:** `GOOGLE_API_KEY`
+**Env vars:** `GOOGLE_API_KEY` (Gemini API only), `GOOGLE_APPLICATION_CREDENTIALS` (service account JSON)
 
-#### Setup
+#### Key formats — read this first
 
-1. Go to [Google AI Studio](https://aistudio.google.com/) and sign in
-2. Navigate to [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
-3. Click **Create API Key**, select a Google Cloud project
-4. Copy the key
-5. Add to `.env`: `GOOGLE_API_KEY=AIza...`
+Google changed API key issuance in 2026:
 
-**For TTS specifically**, you also need to enable the Text-to-Speech API:
-1. Visit [console.cloud.google.com/apis/library/texttospeech.googleapis.com](https://console.cloud.google.com/apis/library/texttospeech.googleapis.com)
-2. Click **Enable**
-3. Make sure your API key's restrictions allow the Text-to-Speech API
+| | Standard key (`AIza…`) | Authorization key (`AQ.…`) |
+|---|---|---|
+| Issued by | Cloud console (still available) | AI Studio — **all new keys since 2026-05-28** |
+| Bound to | A project, for billing/quota only | A service account |
+| Can call | Any API that accepts API keys | Vertex AI / Gemini API only |
+| Gemini API | **Rejected from September 2026** | Supported |
 
-**For Imagen**, enable the Generative Language API:
-1. Visit [console.cloud.google.com/apis/library/generativelanguage.googleapis.com](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com)
-2. Click **Enable**
+Consequences, measured against the live APIs on 2026-09-18:
+
+- **Cloud TTS does not accept API keys at all** — any key type returns
+  `401 API keys are not supported by this API. Expected OAuth2 access token or other
+  authentication credentials that assert a principal`. `google_tts` therefore needs a
+  service account (Auth option B), not `GOOGLE_API_KEY`.
+- **An AI Studio `AQ.` key cannot see Imagen models** — `GET /v1beta/models/imagen-4.0-generate-001`
+  returns `404 Model is not found`. `google_imagen` needs a Vertex AI service account.
+- An `AQ.` key *does* work for the Gemini API itself (`generateContent`), which exposes
+  `gemini-*-image`, `gemini-*-tts` and `veo-3.1-*` models. No OpenMontage tool targets
+  those endpoints yet.
+
+#### Setup — service account (required for `google_tts` and `google_imagen`)
+
+1. In the Cloud console, enable the APIs you need:
+   [Text-to-Speech](https://console.cloud.google.com/apis/library/texttospeech.googleapis.com)
+   and/or [Vertex AI](https://console.cloud.google.com/apis/library/aiplatform.googleapis.com)
+2. Create a service account and download its JSON key
+3. Add to `.env`: `GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json`
+4. For Imagen via Vertex AI, also set `GOOGLE_CLOUD_PROJECT` (and optionally
+   `GOOGLE_CLOUD_LOCATION`, default `us-central1`)
+
+#### Setup — API key (Gemini API only)
+
+1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey) and create a key
+2. Add to `.env`: `GOOGLE_API_KEY=AQ...`
+
+This key is useful for Gemini-API work, but **neither `google_tts` nor `google_imagen`
+can use it today**. Note that both tools report `status: available` whenever
+`GOOGLE_API_KEY` is non-empty, then fail at call time — set the service account instead.
 
 #### Google TTS Pricing
 
@@ -722,8 +761,8 @@ These tools require only FFmpeg or Python packages — no GPU, no API key.
 | **Pexels** | `PEXELS_API_KEY` | `pexels_image`, `pexels_video` | Free |
 | **Pixabay** | `PIXABAY_API_KEY` | `pixabay_image`, `pixabay_video` | Free |
 | **Piper** | — (install only) | `piper_tts` | Free |
-| **Google** | `GOOGLE_API_KEY` | `google_tts`, `google_imagen` | Free tier + paid |
-| **ElevenLabs** | `ELEVENLABS_API_KEY` | `elevenlabs_tts`, `music_gen` | Free tier + paid |
+| **Google** | `GOOGLE_APPLICATION_CREDENTIALS` | `google_tts`, `google_imagen` | Free tier + paid (service account required) |
+| **ElevenLabs** | `ELEVENLABS_API_KEY` | `elevenlabs_tts`, `music_gen` (paid plan) | Free tier + paid |
 | **fal.ai** | `FAL_KEY` | `flux_image`, `recraft_image`, `kling_video`, `veo_video`, `minimax_video` | Pay-as-you-go |
 | **OpenAI** | `OPENAI_API_KEY` | `openai_tts`, `openai_image` | Paid only |
 | **xAI** | `XAI_API_KEY` | `grok_image`, `grok_video` | Paid only |

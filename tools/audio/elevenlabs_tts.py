@@ -71,7 +71,7 @@ class ElevenLabsTTS(BaseTool):
             "text": {"type": "string", "description": "Text to convert to speech"},
             "voice_id": {
                 "type": "string",
-                "description": "ElevenLabs voice ID (default: Rachel)",
+                "description": "ElevenLabs voice ID (default: Sarah)",
             },
             "model_id": {
                 "type": "string",
@@ -113,7 +113,8 @@ class ElevenLabsTTS(BaseTool):
     side_effects = ["writes audio file to output_path", "calls ElevenLabs API"]
     user_visible_verification = ["Listen to generated audio for natural speech quality"]
 
-    DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
+    # Sarah - usable on the free plan; library voices (e.g. Rachel) return 402 via the API.
+    DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
 
     def get_status(self) -> ToolStatus:
         if os.environ.get("ELEVENLABS_API_KEY"):
