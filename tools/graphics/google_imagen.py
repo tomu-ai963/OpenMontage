@@ -1,4 +1,10 @@
-"""Google Imagen image generation via Gemini API."""
+"""Google Imagen image generation via Gemini API / Vertex AI.
+
+Needs a Vertex AI service account. Measured 2026-09-18: an AI Studio
+authorization key ("AQ." prefix, issued for all new keys since 2026-05-28)
+cannot see Imagen models — GET /v1beta/models/imagen-4.0-generate-001 returns
+404. See docs/PROVIDERS.md for the 2026 Google key-format change.
+"""
 
 from __future__ import annotations
 
@@ -62,12 +68,12 @@ class GoogleImagen(BaseTool):
 
     dependencies = []  # checked dynamically via env var
     install_instructions = (
-        "Auth option A — API key (AI Studio): set GOOGLE_API_KEY (or GEMINI_API_KEY).\n"
-        "  Get one at https://aistudio.google.com/apikey\n"
-        "Auth option B — service account (Vertex AI): set GOOGLE_APPLICATION_CREDENTIALS\n"
+        "Service account (Vertex AI): set GOOGLE_APPLICATION_CREDENTIALS\n"
         "  to a service-account JSON key (needs the 'google-auth' package), plus\n"
         "  GOOGLE_CLOUD_PROJECT and optionally GOOGLE_CLOUD_LOCATION (default us-central1).\n"
-        "  Requires the Vertex AI API enabled and billing on the project."
+        "  Requires the Vertex AI API enabled and billing on the project.\n"
+        "GOOGLE_API_KEY / GEMINI_API_KEY reach the Gemini API but NOT Imagen models\n"
+        "  (404 Model is not found), so an AI Studio key alone is not enough."
     )
     agent_skills = []
 
@@ -140,7 +146,9 @@ class GoogleImagen(BaseTool):
         return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
     def get_status(self) -> ToolStatus:
-        # API key -> AI Studio endpoint; service-account JSON -> Vertex AI.
+        # NOTE: this over-reports. An AI Studio API key reaches the Gemini API but
+        # not Imagen (404), so AVAILABLE on GOOGLE_API_KEY alone still fails at call
+        # time. Only the service-account path (Vertex AI) works; follow-up tracked.
         if self._get_api_key() or service_account_configured():
             return ToolStatus.AVAILABLE
         return ToolStatus.UNAVAILABLE

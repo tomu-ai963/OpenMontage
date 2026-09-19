@@ -244,7 +244,7 @@ Consequences, measured against the live APIs on 2026-09-18:
 - **Cloud TTS does not accept API keys at all** — any key type returns
   `401 API keys are not supported by this API. Expected OAuth2 access token or other
   authentication credentials that assert a principal`. `google_tts` therefore needs a
-  service account (Auth option B), not `GOOGLE_API_KEY`.
+  service account, not `GOOGLE_API_KEY`.
 - **An AI Studio `AQ.` key cannot see Imagen models** — `GET /v1beta/models/imagen-4.0-generate-001`
   returns `404 Model is not found`. `google_imagen` needs a Vertex AI service account.
 - An `AQ.` key *does* work for the Gemini API itself (`generateContent`), which exposes
