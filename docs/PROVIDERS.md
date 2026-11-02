@@ -44,7 +44,7 @@ DOUBAO_SPEECH_API_KEY=       # Volcengine Doubao Speech TTS (strong Mandarin nar
 DOUBAO_SPEECH_VOICE_TYPE=    # Default Doubao speaker/voice type
 
 # MULTI-MODEL GATEWAY (one key, 6+ tools)
-FAL_KEY=                     # FLUX, Recraft, Kling, Veo, MiniMax video
+FAL_KEY=                     # FLUX, Recraft, Kling, Veo, MiniMax video + music
 
 # VIDEO
 HEYGEN_API_KEY=              # HeyGen avatar video gateway
@@ -99,7 +99,7 @@ OpenMontage now uses those published rates in the Grok tool estimators.
 
 > **Broad single-key coverage.** One API key unlocks image and video providers across multiple models.
 
-**Tools unlocked:** `flux_image`, `recraft_image`, `kling_video`, `veo_video`, `minimax_video`
+**Tools unlocked:** `flux_image`, `recraft_image`, `kling_video`, `veo_video`, `minimax_video`, `minimax_music`
 **Env var:** `FAL_KEY`
 
 #### Setup
@@ -129,6 +129,14 @@ No subscription — pure pay-as-you-go, no minimum spend.
 | MiniMax | ~$0.05/sec | 20 seconds |
 | Veo 3 | $0.40/sec | 2.5 seconds |
 | WAN 2.5 | $0.05/sec | 20 seconds |
+
+**Music generation:**
+
+| Model | Price | Per $1 |
+|-------|-------|--------|
+| MiniMax Music 2.6 (`minimax_music`) | ~$0.15/track (fal learn page; the model page shows no price) | ~6 tracks |
+
+`minimax_music` supports vocal-free instrumentals (`is_instrumental`). The model picks the track length, so the tool trims to `duration_seconds` with ffmpeg and keeps the untrimmed `*_raw` file. The older `fal-ai/minimax-music` endpoint is not used: it requires lyrics plus a vocal reference track.
 
 **Free tier:** None — but $0 to start, you only pay for what you use.
 
@@ -763,7 +771,7 @@ These tools require only FFmpeg or Python packages — no GPU, no API key.
 | **Piper** | — (install only) | `piper_tts` | Free |
 | **Google** | `GOOGLE_APPLICATION_CREDENTIALS` | `google_tts`, `google_imagen` | Free tier + paid (service account required) |
 | **ElevenLabs** | `ELEVENLABS_API_KEY` | `elevenlabs_tts`, `music_gen` (paid plan) | Free tier + paid |
-| **fal.ai** | `FAL_KEY` | `flux_image`, `recraft_image`, `kling_video`, `veo_video`, `minimax_video` | Pay-as-you-go |
+| **fal.ai** | `FAL_KEY` | `flux_image`, `recraft_image`, `kling_video`, `veo_video`, `minimax_video`, `minimax_music` | Pay-as-you-go |
 | **OpenAI** | `OPENAI_API_KEY` | `openai_tts`, `openai_image` | Paid only |
 | **xAI** | `XAI_API_KEY` | `grok_image`, `grok_video` | Paid only |
 | **Runway** | `RUNWAY_API_KEY` | `runway_video` | Free trial + paid |
@@ -785,7 +793,7 @@ How many providers cover each capability:
 | **Image Generation** | FLUX, Grok, Google Imagen, DALL-E 3, Recraft | Local Diffusion | Pexels, Pixabay (stock) |
 | **Video Generation** | Grok, Kling, Runway, Veo, Higgsfield, MiniMax, HeyGen | WAN, Hunyuan, CogVideo, LTX | Pexels, Pixabay (stock) |
 | **Text-to-Speech** | ElevenLabs, Google TTS, OpenAI | Piper | Piper, Google free tier, ElevenLabs free tier |
-| **Music Generation** | ElevenLabs, Suno | — | ElevenLabs free tier |
+| **Music Generation** | ElevenLabs, Suno, MiniMax (fal) | — | ElevenLabs free tier |
 | **Post-Production** | — | FFmpeg (compose, stitch, trim, mix, enhance, grade) | All free |
 | **Analysis** | — | WhisperX, Scene Detect, Frame Sampler, CLIP/BLIP-2 | All free |
 | **Enhancement** | — | Upscale, BG Remove, Face Enhance, Face Restore | All free |
