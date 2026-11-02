@@ -218,8 +218,13 @@ class Transcriber(BaseTool):
         language: str,
     ) -> list[dict]:
         """Apply WhisperX diarization to assign speaker labels."""
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
             import whisperx
+            from whisperx.diarize import DiarizationPipeline
 
             # Load audio for alignment
             audio = whisperx.load_audio(audio_path)
@@ -237,10 +242,18 @@ class Transcriber(BaseTool):
             hf_token = os.environ.get("HF_TOKEN")
             if not hf_token:
                 # Can't diarize without HuggingFace token for pyannote
+                logger.warning(
+                    "HF_TOKEN is not set; skipping diarization "
+                    "(segments will have no speaker labels)"
+                )
                 return segments
 
-            diarize_model = whisperx.DiarizationPipeline(
-                use_auth_token=hf_token, device="cpu"
+            # model_name is explicit: the current default
+            # (pyannote/speaker-diarization-community-1) is a separately gated repo.
+            diarize_model = DiarizationPipeline(
+                model_name="pyannote/speaker-diarization-3.1",
+                token=hf_token,
+                device="cpu",
             )
             diarize_segments = diarize_model(audio)
             result = whisperx.assign_word_speakers(diarize_segments, aligned)
@@ -248,4 +261,8 @@ class Transcriber(BaseTool):
             return result.get("segments", segments)
         except Exception:
             # Diarization is best-effort; return original segments on failure
+            logger.warning(
+                "Diarization failed; returning segments without speaker labels",
+                exc_info=True,
+            )
             return segments
