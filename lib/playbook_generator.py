@@ -25,7 +25,7 @@ CUSTOM_STYLES_DIR = STYLES_DIR / "custom"
 
 
 def _load_playbook_schema() -> dict:
-    with open(PLAYBOOK_SCHEMA_PATH) as f:
+    with open(PLAYBOOK_SCHEMA_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -37,7 +37,7 @@ def load_existing_playbook(name: str) -> dict[str, Any]:
         path = CUSTOM_STYLES_DIR / f"{name}.yaml"
     if not path.exists():
         raise FileNotFoundError(f"Playbook not found: {name}")
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -219,7 +219,7 @@ def save_playbook(
     CUSTOM_STYLES_DIR.mkdir(parents=True, exist_ok=True)
     path = CUSTOM_STYLES_DIR / f"{filename}.yaml"
 
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         yaml.dump(playbook, f, default_flow_style=False, allow_unicode=True)
 
     return path

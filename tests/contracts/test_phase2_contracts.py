@@ -167,12 +167,15 @@ class TestPhase2ErrorHandling:
         r = tool.execute({"input_path": "/nonexistent.mp4"})
         assert not r.success
 
-    def test_image_selector_no_provider(self):
-        tool = ImageSelector()
-        # Will fail if no API key or local model
-        r = tool.execute({"prompt": "test"})
-        # Either succeeds (provider available) or fails gracefully
+    def test_image_selector_no_provider(self, monkeypatch):
+        # Stub out provider discovery. Calling execute() with the real registry
+        # makes a paid image generation whenever an API key is in .env (it once
+        # left grok_image_1.jpeg in the repo root).
+        monkeypatch.setattr(ImageSelector, "_providers", lambda self: [])
+        r = ImageSelector().execute({"prompt": "test"})
         assert isinstance(r, ToolResult)
+        assert not r.success
+        assert r.error == "No image provider available."
 
     def test_diagram_gen_empty_boxes(self):
         tool = DiagramGen()
