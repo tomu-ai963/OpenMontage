@@ -2,6 +2,10 @@
 
 Google TTS offers 700+ voices across 50+ languages, including Standard,
 WaveNet, Neural2, Studio, and Journey voice types — strong for localization.
+
+Requires a service account. Cloud TTS does not accept API keys of any kind:
+measured 2026-09-18, every key type returns 401 "API keys are not supported by
+this API". See docs/PROVIDERS.md for the 2026 Google key-format change.
 """
 
 from __future__ import annotations
@@ -40,11 +44,11 @@ class GoogleTTS(BaseTool):
 
     dependencies = []
     install_instructions = (
-        "Auth option A — API key: set GOOGLE_API_KEY (or GEMINI_API_KEY) to a\n"
-        "  Google Cloud API key with Text-to-Speech enabled.\n"
+        "Set GOOGLE_APPLICATION_CREDENTIALS to the path of a service-account JSON\n"
+        "  key (needs the 'google-auth' package).\n"
         "  Enable the API at https://console.cloud.google.com/apis/library/texttospeech.googleapis.com\n"
-        "Auth option B — service account: set GOOGLE_APPLICATION_CREDENTIALS to the\n"
-        "  path of a service-account JSON key (needs the 'google-auth' package)."
+        "GOOGLE_API_KEY / GEMINI_API_KEY do NOT work here: Cloud TTS rejects API keys\n"
+        "  with 401 'API keys are not supported by this API'."
     )
     fallback = "openai_tts"
     fallback_tools = ["openai_tts", "elevenlabs_tts", "piper_tts"]
@@ -133,8 +137,10 @@ class GoogleTTS(BaseTool):
         return os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
     def get_status(self) -> ToolStatus:
-        # Available via either an API key or a service-account JSON. Both paths
-        # are honoured by execute() — so this no longer over-reports.
+        # NOTE: this over-reports. An API key alone cannot call Cloud TTS (401),
+        # so AVAILABLE on GOOGLE_API_KEY without a service account still fails at
+        # call time, and execute() prefers the key over a working service account.
+        # Tracked as a follow-up; docs/PROVIDERS.md documents the trap.
         if self._get_api_key() or service_account_configured():
             return ToolStatus.AVAILABLE
         return ToolStatus.UNAVAILABLE
