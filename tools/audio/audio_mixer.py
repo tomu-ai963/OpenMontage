@@ -23,6 +23,12 @@ from tools.base_tool import (
 )
 
 
+# loudnorm upsamples to 192 kHz internally and outputs at that rate unless told
+# otherwise, so resample back to the standard video rate after normalizing.
+NORMALIZED_SAMPLE_RATE = 48000
+_LOUDNORM = f"loudnorm=I=-16:LRA=11:TP=-1.5,aresample={NORMALIZED_SAMPLE_RATE}"
+
+
 class AudioMixer(BaseTool):
     name = "audio_mixer"
     version = "0.1.0"
@@ -203,6 +209,43 @@ class AudioMixer(BaseTool):
         result.duration_seconds = round(time.time() - start, 2)
         return result
 
+    def _probe_duration(self, path: str) -> float:
+        """Duration of an audio/video file in seconds (ffprobe)."""
+        out = self.run_command([
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "csv=p=0",
+            path,
+        ]).stdout
+        return float(out.strip().splitlines()[0])
+
+    def _track_filters(self, track: dict[str, Any]) -> list[str]:
+        """Per-track volume / delay / fade filters for the mix graphs.
+
+        ``afade`` without ``st=`` starts at t=0, so a fade-out given only a
+        duration silences the head of the track, and a fade-in on a delayed
+        track runs during the leading silence. Both fades get explicit start
+        times on the delayed timeline instead.
+        """
+        volume = track.get("volume", 1.0)
+        delay_ms = int(track.get("start_seconds", 0) * 1000)
+        start = delay_ms / 1000
+        fade_in = track.get("fade_in_seconds", 0)
+        fade_out = track.get("fade_out_seconds", 0)
+
+        filters = []
+        if volume != 1.0:
+            filters.append(f"volume={volume}")
+        if delay_ms > 0:
+            filters.append(f"adelay={delay_ms}|{delay_ms}")
+        if fade_in > 0:
+            filters.append(f"afade=t=in:st={start:.3f}:d={fade_in}")
+        if fade_out > 0:
+            end = start + self._probe_duration(track["path"])
+            fade_start = max(start, end - fade_out)
+            filters.append(f"afade=t=out:st={fade_start:.3f}:d={fade_out}")
+        return filters
+
     def _mix(self, inputs: dict[str, Any]) -> ToolResult:
         """Mix multiple audio tracks into one output."""
         tracks = inputs.get("tracks", [])
@@ -223,20 +266,7 @@ class AudioMixer(BaseTool):
 
         for i, track in enumerate(tracks):
             input_args.extend(["-i", track["path"]])
-            volume = track.get("volume", 1.0)
-            delay_ms = int(track.get("start_seconds", 0) * 1000)
-            fade_in = track.get("fade_in_seconds", 0)
-            fade_out = track.get("fade_out_seconds", 0)
-
-            filters = []
-            if volume != 1.0:
-                filters.append(f"volume={volume}")
-            if delay_ms > 0:
-                filters.append(f"adelay={delay_ms}|{delay_ms}")
-            if fade_in > 0:
-                filters.append(f"afade=t=in:d={fade_in}")
-            if fade_out > 0:
-                filters.append(f"afade=t=out:d={fade_out}")
+            filters = self._track_filters(track)
 
             if filters:
                 filter_chain = ",".join(filters)
@@ -251,7 +281,7 @@ class AudioMixer(BaseTool):
         )
 
         if normalize:
-            filter_parts.append("[mixed]loudnorm=I=-16:LRA=11:TP=-1.5[out]")
+            filter_parts.append(f"[mixed]{_LOUDNORM}[out]")
             out_label = "[out]"
         else:
             out_label = "[mixed]"
@@ -467,20 +497,7 @@ class AudioMixer(BaseTool):
 
         for i, track in enumerate(all_tracks):
             input_args.extend(["-i", track["path"]])
-            volume = track.get("volume", 1.0)
-            delay_ms = int(track.get("start_seconds", 0) * 1000)
-            fade_in = track.get("fade_in_seconds", 0)
-            fade_out = track.get("fade_out_seconds", 0)
-
-            filters = []
-            if volume != 1.0:
-                filters.append(f"volume={volume}")
-            if delay_ms > 0:
-                filters.append(f"adelay={delay_ms}|{delay_ms}")
-            if fade_in > 0:
-                filters.append(f"afade=t=in:d={fade_in}")
-            if fade_out > 0:
-                filters.append(f"afade=t=out:d={fade_out}")
+            filters = self._track_filters(track)
 
             if filters:
                 filter_chain = ",".join(filters)
@@ -575,7 +592,7 @@ class AudioMixer(BaseTool):
 
         # Normalize
         if normalize:
-            filter_parts.append("[premix]loudnorm=I=-16:LRA=11:TP=-1.5[out]")
+            filter_parts.append(f"[premix]{_LOUDNORM}[out]")
             out_label = "[out]"
         else:
             out_label = "[premix]"
